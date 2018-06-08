@@ -16,9 +16,9 @@
             [lein-ancient        "0.6.10"]
             [com.cemerick/austin "0.1.6"]
             [lein-cljsbuild      "1.1.4"]
-            [cider/cider-nrepl   "0.12.0"] ; Optional, for use with Emacs
+            [cider/cider-nrepl   "0.12.0"] ;; Optional, for use with Emacs
             ]
-  :jvm-opts ["--add-modules" "java.xml.bind"]
+  ;;  :jvm-opts ["--add-modules" "java.xml.bind"] ;; for Java 10
   :main ^:skip-aot simple-clojure-app.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})
