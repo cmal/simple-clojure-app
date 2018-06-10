@@ -1,6 +1,7 @@
 (ns simple-clojure-app.functional
   (:require [clojure.repl :refer [doc source]]
-            [clojure.test :as t])
+            [clojure.test :as t]
+            [simple-clojure-app.reflect :refer [pprint-class]])
   (:use [clojure.pprint]
         [clojure.reflect]))
 
@@ -132,22 +133,6 @@ bar ;; => 1
 
 
 (class (Thread.))
-
-(defn pprint-class [class-name & args]
-  (print-table
-   (for [meth (-> (clojure.lang.Reflector/invokeConstructor class-name (into-array Object args))
-                  .getClass
-                  .getMethods)]
-     (->> meth
-          ((juxt
-            #(.getName %)
-            #(vec (map (fn [t] (.getName t))
-                       (.getParameterTypes %)))
-            #(.getReturnType %)
-            #(.getModifiers %)
-            #(vec (map (fn [t] (.getName t))
-                       (.getExceptionTypes %)))))
-          (zipmap [:name :params :returnType :modifiers :exceptions])))))
 
 (pprint-class Thread)
 

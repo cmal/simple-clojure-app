@@ -16,7 +16,9 @@
 ;;            [lein-pprint         "1.1.2"]
 ;;            [lein-ancient        "0.6.10"]
 ;;            [com.cemerick/austin "0.1.6"]
-            [cider/cider-nrepl   "0.17.0"] ;; Optional, for use with Emacs
+;;            [cider/cider-nrepl   "0.17.0"] ;; Optional, for use with Emacs
+
+            [cider/cider-nrepl "0.18.0-snapshot"]
             ]
   ;;  :jvm-opts ["--add-modules" "java.xml.bind"] ;; for Java 10
   :main ^:skip-aot simple-clojure-app.core
