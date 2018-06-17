@@ -254,7 +254,7 @@
 
 (xseq sample-tree2)
 
-;; defrecord, deftype
+;; deftype
 
 (defrecord InfinitConstant [i]
   clojure.lang.ISeq
