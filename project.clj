@@ -28,7 +28,7 @@
 
             [cider/cider-nrepl "0.18.0-snapshot"]
             ]
-  ;;  :jvm-opts ["--add-modules" "java.xml.bind"] ;; for Java 10
+  :jvm-opts ["--add-modules" "java.xml.bind"] ;; for Java 10
   :main ^:skip-aot simple-clojure-app.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

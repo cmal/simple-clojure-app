@@ -288,7 +288,7 @@
       r))
 
   clojure.lang.IPersistentStack
-  (cons [this v] (fixo-push this v))
+  (cons [this o] (fixo-push this o))
   (peek [this] (fixo-peek this))
   (pop [this] (fixo-pop this))
 

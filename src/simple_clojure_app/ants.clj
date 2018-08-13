@@ -13,7 +13,7 @@
 (def food-scale 30.0)
 (def evap-rate 0.99)
 (def animation-sleep-ms 100)
-(def ant-sleep-ms 10)
+(def ant-sleep-ms 100)
 (def evap-sleep-ms 1000)
 (def running true)
 
@@ -111,7 +111,7 @@
     (alter newp assoc :ant ant)
     (alter oldp dissoc :ant)
     ;; leave pheromone trail
-    (when (and (not (:home @oldp)) (:food @oldp))
+    (when (and (not (:home @oldp)) (:food @ant))
       (alter oldp update :pher inc)
       #_(alter oldp assoc :pher (inc (:pher @oldp))))
     newloc))
