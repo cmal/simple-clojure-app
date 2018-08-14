@@ -104,6 +104,16 @@
   (heap-maximum [this]) ;; peek
   (heap-increase-key [this k v]))
 
+(defprotocol MinHeapProtocol
+  (min-heapify [this len i])
+  (build-min-heap [this])
+  (min-heap-sort [this])
+  (min-heap-insert [this x])
+  (heap-extract-min [this])
+  (heap-extract-min-remanents [this])
+  (heap-minimum [this])
+  (heap-decrease-key [this k v]))
+
 (defn parent [i]
   (quot i 2))
 
@@ -126,7 +136,7 @@
                     r largest)]
       (when (not= i largest)
         (r-swap arr i largest)
-        (pprint arr)
+        #_(pprint arr)
         (max-heapify this len largest))))
   (build-max-heap [this]
     (let [len (count arr)]
@@ -141,35 +151,32 @@
        (when-not (= i 1)
          (r-swap arr 0 i)
          ;; decrease heap-size
-         (max-heapify this (dec len) 0)
+         (max-heapify this (dec i) 0)
          (recur (dec i))))))
   (max-heap-insert [this x]
-    (prn "max-heap-insert")
     (let [index (count arr)]
       (set! arr (to-array (conj (vec arr) Double/NEGATIVE_INFINITY)))
       (heap-increase-key this index x)
       (vec arr)))
   (heap-extract-max-remanents [this]
     (let [len (count arr)
-          max-key (first arr)]
-      (aset arr 0 (aget arr (dec len)))
+          max-key (first arr)
+          raised-key (aget arr (dec len))]
+      (aset arr 0 raised-key)
+      (set! arr (to-array (drop-last arr)))
       (max-heapify this (dec len) 0)
-      (prn "heap balanced")
       (vec arr)))
   (heap-extract-max [this]
     (let [len (count arr)
           max-key (force (first arr))]
       (aset arr 0 (aget arr (dec len)))
       (max-heapify this (dec len) 0)
-      (prn "heap balanced")
       max-key))
   (heap-maximum [this]
     (first arr))
   (heap-increase-key [this k v]
-    (prn "heap-increase-key")
     (aset arr k v)
     (loop [i k]
-      (prn "loop: i = " i)
       (when (and (not (zero? i)) (< (aget arr (parent i))
                                 (aget arr i)))
         (r-swap arr i (parent i))
@@ -183,10 +190,85 @@
     (seq arr))
 
   clojure.lang.IPersistentStack
+  (count [this] (count this))
   (peek [this] (heap-maximum this))
   (pop [this] (heap-extract-max-remanents this))
   (cons [this x]
     (max-heap-insert this x)))
+
+(deftype MinHeap [^{:volatile-mutable true} arr]
+  MinHeapProtocol
+  (min-heapify [this len i]
+    (let [l (left i)
+          r (right i)
+          smallest (if (and (< l len)
+                           (< (aget arr l) (aget arr i)))
+                    l i)
+          smallest (if (and (< r len)
+                            (< (aget arr r) (aget arr smallest)))
+                    r smallest)]
+      (when (not= i smallest)
+        (r-swap arr i smallest)
+        #_(pprint arr)
+        (min-heapify this len smallest))))
+  (build-min-heap [this]
+    (let [len (count arr)]
+      (loop [i (parent len)]
+       (when-not (neg? i)
+         (min-heapify this len i)
+         (recur (dec i))))))
+  (min-heap-sort [this]
+    (build-min-heap this)
+    (let [len (count arr)]
+     (loop [i (dec len)]
+       (when-not (= i 1)
+         (r-swap arr 0 i)
+         ;; decrease heap-size
+         (min-heapify this (dec i) 0)
+         (recur (dec i))))
+     (set! arr (to-array (reverse arr)))))
+  (min-heap-insert [this x]
+    (let [index (count arr)]
+      (set! arr (to-array (conj (vec arr) Double/POSITIVE_INFINITY)))
+      (heap-decrease-key this index x)
+      (vec arr)))
+  (heap-extract-min-remanents [this]
+    (let [len (count arr)
+          min-key (first arr)
+          raised-key (aget arr (dec len))]
+      (aset arr 0 raised-key)
+      (set! arr (to-array (drop-last arr)))
+      (min-heapify this (dec len) 0)
+      (vec arr)))
+  (heap-extract-min [this]
+    (let [len (count arr)
+          min-key (force (first arr))]
+      (aset arr 0 (aget arr (dec len)))
+      (min-heapify this (dec len) 0)
+      min-key))
+  (heap-minimum [this]
+    (first arr))
+  (heap-decrease-key [this k v]
+    (aset arr k v)
+    (loop [i k]
+      (when (and (not (zero? i)) (< (aget arr i)
+                                    (aget arr (parent i))))
+        (r-swap arr i (parent i))
+        (recur (parent i)))))
+
+  java.util.List
+  (toArray [this] arr)
+
+  clojure.lang.Seqable
+  (seq [t]
+    (seq arr))
+
+  clojure.lang.IPersistentStack
+  (count [this] (count this))
+  (peek [this] (heap-minimum this))
+  (pop [this] (heap-extract-min-remanents this))
+  (cons [this x]
+    (min-heap-insert this x)))
 
 
 (def heap-arr
@@ -203,3 +285,53 @@
   (prn "peek: " (peek heap))
   (pop heap)
   (conj heap 16))
+
+
+(do
+  (def heap-arr
+    (to-array
+     (reverse [1 2 3 4 7 8 9 10 14 16])))
+  (def heap (MinHeap. heap-arr))
+  (build-min-heap heap)
+  (pprint (.toArray heap))
+  (prn "peek: " (peek heap))
+  (pop heap)
+  (conj heap 16))
+
+
+(defn move-to! [heap1 heap2]
+  ;; move the root element of heap1 to heap2
+  ;; and balanced both heap
+  ;; NOTE this will change heap1 and heap2
+  (let [item (heap-extract-max heap1)]
+    (conj heap2 item)))
+
+(defn find-median [v]
+  (let [min-heap (MinHeap. (to-array [])) ;; hold bigger objects
+        max-heap (MaxHeap. (to-array [])) ;; hold smaller objects
+        ]
+   (loop [index 0
+          v v]
+     (when-not (empty? v)
+      (let [item (first v)]
+        (if (even? index)
+          (if (or (empty? max-heap)
+                  (< (peek max-heap) item))
+            (conj min-heap item)
+            (do
+              (conj min-heap (peek max-heap))
+              (pop max-heap)
+              (conj max-heap item)))
+          (if (or (empty? min-heap)
+                  (> (peek min-heap) item))
+            (conj max-heap item)
+            (do
+              (conj max-heap (peek min-heap))
+              (pop min-heap)
+              (conj min-heap item)))))
+      (recur (inc index)
+             (rest v))))
+   (cond
+     (> (count min-heap) (count max-heap)) (peek min-heap)
+     (> (count max-heap) (count min-heap)) (peek max-heap)
+     :else                                 (/ (+ (peek min-heap) (peek max-heap)) 2))))
