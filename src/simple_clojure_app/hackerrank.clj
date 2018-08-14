@@ -1,22 +1,24 @@
 (ns simple-clojure-app.hackerrank
-  (:require [clojure.repl :refer [source doc]])
+  (:require [clojure.repl :refer [source doc]]
+            [clojure.edn :as edn])
   (:use [clojure.test]
         [clojure.pprint]))
 
 (defn r-insertion-sort [arr]
   ;; insertion sort for java array
-  (loop [j 1]
-    (let [key (aget arr j)
-          i   (dec j)]
-      (loop [i i]
-        (if (and (>= i 0) (> (aget arr i) key))
-          (do
-            (aset arr (inc i) (aget arr i))
-            (recur (dec i)))
-          (aset arr (inc i) key)))
-      (if (= j (dec (count arr)))
-        arr
-        (recur (inc j))))))
+  (when-not (empty? arr)
+    (loop [j 1]
+      (let [key (aget arr j)
+            i   (dec j)]
+        (loop [i i]
+          (if (and (>= i 0) (> (aget arr i) key))
+            (do
+              (aset arr (inc i) (aget arr i))
+              (recur (dec i)))
+            (aset arr (inc i) key)))
+        (if (= j (dec (count arr)))
+          arr
+          (recur (inc j)))))))
 
 (defn insertion-sort [v]
   ;; insertion sort for clojure seq
@@ -31,6 +33,16 @@
       (if (= j (dec (count v)))
         new-v
         (recur (inc j) new-v)))))
+
+(defn insert-to-sorted! [sorted val]
+  ;; sorted must be asc
+  ;; return a java array
+  (let [[v1 v2] (split-with (partial > val) sorted)]
+    (to-array (concat v1 [val] v2))))
+
+(defn remove-from-sorted! [sorted val]
+  (let [[v1 v2] (split-with (partial > val) sorted)]
+    (to-array (concat v1 (rest v2)))))
 
 
 (defn find-max-crossing-subarray [arr low mid high]
@@ -517,3 +529,165 @@
 
 
  (heap-sort heap))
+
+
+(def arr (edn/read-string (slurp "/Users/yuzhao/Downloads/hackerrank-median.edn")))
+
+(median arr)
+
+
+(def moving-arr (to-array (range 10)))
+
+(r-insertion-sort moving-arr)
+
+(defn sorted-median [sorted]
+  (let [len   (count sorted)
+        index (quot len 2)]
+    (if (even? len)
+      (/ (+ (aget sorted index)
+            (aget sorted (dec index)))
+         2)
+      (aget sorted index))))
+
+(defn update-median [val-remove val-insert]
+  (alter-var-root moving-arr (remove-from-sorted! moving-arr val-remove))
+  (alter-var-root moving-arr (insert-to-sorted! moving-arr val-insert))
+  (sorted-median moving-arr))
+
+
+(def moving-v (vec (range 10)))
+
+(def sorted (atom (vec (sort (range 10)))))
+
+(defn sorted-median [sorted]
+  (let [len (count sorted)
+        index (quot len 2)]
+    (if (even? len)
+      (/ (+ (get sorted index)
+            (get sorted (dec index)))
+         2)
+      (get sorted index))))
+
+(defn insert-to-sorted! [sorted val]
+  ;; sorted must be asc
+  ;; return a java array
+  (let [[v1 v2] (split-with (partial > val) @sorted)]
+    (reset! sorted (vec (concat v1 [val] v2)))))
+
+(defn remove-from-sorted! [sorted val]
+  (let [[v1 v2] (split-with (partial > val) @sorted)]
+    (reset! sorted (vec (concat v1 (rest v2))))))
+
+(defn update-median [sorted val-remove val-insert]
+  (remove-from-sorted! sorted val-remove)
+  (insert-to-sorted! sorted val-insert)
+  (sorted-median @sorted))
+
+(time
+ (let [n 200000
+       d 10000
+       expenditure (edn/read-string
+                    (slurp
+                     "/Users/yuzhao/Downloads/hackerrank-median.edn"))]
+   (defn activityNotifications []
+     (let [sorted (atom (vec (sort (take (dec d) expenditure))))
+           infi Double/NEGATIVE_INFINITY
+           _      (insert-to-sorted! sorted infi)]
+       (loop [index 0
+              times 0]
+         (if (= index (- n d))
+           times
+           (recur (inc index)
+                  (let [curr (+ index d)]
+                    (if (>=
+                         (get expenditure curr)
+                         (* 2 (update-median
+                               sorted
+                               (if (zero? index)
+                                 infi
+                                 (get expenditure (dec index)))
+                               (get expenditure (dec curr)))))
+                      (inc times)
+                      times)))))))
+   (prn "Answer: " (activityNotifications))))
+
+
+
+
+;; couting sort
+
+(time
+ (let [n 200000
+       d 10000
+       expenditure (edn/read-string
+                    (slurp
+                     "/Users/yuzhao/Downloads/hackerrank-median.edn"))
+       n 9
+       d 5
+       expenditure [2 3 4 2 3 6 8 4 5]
+       
+       ;; n 5
+       ;; d 4
+       ;; expenditure [1 2 3 4 4]
+
+       ;; n 5
+       ;; d 3
+       ;; expenditure [10 20 30 40 50]
+       counter (atom (vec (repeat 201 0)))
+       update-counter (fn update-counter [remove insert]
+                        (let [mid (quot (inc d) 2)
+                              median (if (even? d)
+                                       (/
+                                        (loop [sum 0
+                                               index 0
+                                               i  0
+                                               j  0]
+                                          (if (and (not (zero? i)) (not (zero? j)))
+                                            (+ i j)
+                                            (let [sum (+ sum (get @counter index))]
+                                              (recur
+                                               sum
+                                               (inc index)
+                                               (if (zero? i)
+                                                 (if (>= mid sum)
+                                                   i index)
+                                                 i)
+                                               (if (zero? j)
+                                                 (if (> mid sum)
+                                                   j index)
+                                                 j)))))
+                                        2)
+                                       (loop [sum 0
+                                              index 0]
+                                         (let [sum (+ sum (get @counter index))]
+                                           (if (> mid sum)
+                                             (recur
+                                              sum
+                                              (inc index))
+                                             index))))]
+                          (prn "median: " median)
+                          (swap! counter assoc remove (dec (get @counter remove)))
+                          (swap! counter assoc insert (inc (get @counter insert)))
+                          median))]
+
+   (defn activityNotifications []
+     (let [first-d (take d expenditure)]
+       (loop [l first-d]
+         (when-not (empty? l)
+           (swap! counter assoc (first l) (inc (get @counter (first l))))
+           (recur (rest l))))
+       (loop [index 0
+              times 0]
+         (if (= index (- n d))
+           times
+           (recur (inc index)
+                  (let [curr (+ index d)
+                        median (update-counter
+                                  (get expenditure index)
+                                  (get expenditure curr))]
+                    (if (>= (get expenditure curr)
+                            (* 2 median))
+                      (inc times)
+                      times)))))))
+   (prn "Answer: " (activityNotifications))))
+
