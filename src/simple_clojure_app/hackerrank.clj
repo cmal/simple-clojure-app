@@ -140,7 +140,7 @@
         (max-heapify this len largest))))
   (build-max-heap [this]
     (let [len (count arr)]
-      (loop [i (parent len)]
+      (loop [i (parent (dec len))]
        (when-not (neg? i)
          (max-heapify this len i)
          (recur (dec i))))))
@@ -213,7 +213,7 @@
         (min-heapify this len smallest))))
   (build-min-heap [this]
     (let [len (count arr)]
-      (loop [i (parent len)]
+      (loop [i (parent (dec len))]
        (when-not (neg? i)
          (min-heapify this len i)
          (recur (dec i))))))
@@ -335,3 +335,185 @@
      (> (count min-heap) (count max-heap)) (peek min-heap)
      (> (count max-heap) (count min-heap)) (peek max-heap)
      :else                                 (/ (+ (peek min-heap) (peek max-heap)) 2))))
+
+
+;; the above is wrong
+;; ==== ANOTHER implementation ====
+
+(defn parent [i]
+  (if (zero? i)
+    -1
+    (quot (dec i) 2)))
+
+(defn left [i]
+  (inc (* 2 i)))
+
+(defn right [i]
+  (* 2 (inc i)))
+
+(defprotocol HeapProtocol
+  (heapify [this len i])
+  (build-heap [this])
+  (heap-sort [this])
+  (heap-insert [this x])
+  (heap-extract-top [this])
+  (heap-extract-top-remanents [this])
+  (heap-top [this])
+  (heap-sink-key [this k v]))
+
+(deftype Heap [^{:volatile-mutable true} arr cmp]
+  HeapProtocol
+  (heapify [this len i]
+    (let [l          (left i)
+          r          (right i)
+          min-or-max (if (and (< l len)
+                              (cmp (aget arr l) (aget arr i)))
+                       l i)
+          min-or-max (if (and (< r len)
+                              (cmp (aget arr r) (aget arr min-or-max)))
+                       r min-or-max)]
+      #_(prn "comparing: " (and (< l len) (aget arr l)) (and (< r len) (aget arr r)) (aget arr i) ", winner: " (aget arr min-or-max))
+      #_(pprint arr)
+      (when (not= i min-or-max)
+        #_(prn "swap: ", i , min-or-max)
+        (r-swap arr i min-or-max)
+        (heapify this len min-or-max))))
+  (build-heap [this]
+    (let [len (count arr)]
+      (loop [i (parent (dec len))]
+        #_(prn "i: " i)
+        (when-not (neg? i)
+          (heapify this len i)
+          (recur (dec i))))))
+  (heap-sort [this]
+    (build-heap this)
+    (let [len (count arr)]
+      (loop [i (dec len)]
+        (when-not (zero? i)
+          (r-swap arr 0 i)
+          (heapify this i 0)
+          (recur (dec i))))))
+  (heap-insert [this x]
+    (let [index (count arr)]
+      ;; 0 on the following line
+      ;; is the same effect as Infinity
+      ;; because the heap-sink-key method
+      ;; will set the index to x and regardless
+      ;; of its value
+      (set! arr (to-array (conj (vec arr) 0)))
+      (heap-sink-key this index x)
+      (vec arr)))
+  (heap-extract-top-remanents [this]
+    (let [len        (count arr)]
+      (aset arr 0 (aget arr (dec len)))
+      (set! arr (to-array (drop-last arr)))
+      (heapify this (dec len) 0)
+      (vec arr)))
+  (heap-extract-top [this]
+    (let [len     (count arr)
+          top-key (force (first arr))]
+      (aset arr 0 (aget arr (dec len)))
+      (heapify this (dec len) 0)
+      top-key))
+  (heap-top [this]
+    (first arr))
+  (heap-sink-key [this k v]
+    (aset arr k v)
+    (loop [i k]
+      (when (and (not (zero? i))
+                 (cmp (aget arr i)
+                      (aget arr (parent i))))
+        (r-swap arr i (parent i))
+        (recur (parent i)))))
+
+  java.util.List
+  (toArray [this] arr)
+
+  clojure.lang.Seqable
+  (seq [t]
+    (seq arr))
+
+  clojure.lang.IPersistentStack
+  (count [this] (count this))
+  (peek [this] (heap-top this))
+  (pop [this] (heap-extract-top-remanents this))
+  (cons [this x]
+    (heap-insert this x)))
+
+
+(defn move-to! [heap1 heap2]
+  ;; move the root element of heap1 to heap2
+  ;; and balanced both heap
+  ;; NOTE this will change heap1 and heap2
+  (let [item (heap-extract-top heap1)]
+    (conj heap2 item)))
+
+(defn median [v]
+  (let [min-heap (Heap. (to-array []) <) ;; hold bigger objects
+        max-heap (Heap. (to-array []) >) ;; hold smaller objects
+        ]
+    (loop [index 0
+           v     v]
+      (when-not (empty? v)
+        (let [item (first v)]
+          (if (even? index)
+            (if (or (empty? max-heap)
+                    (< (peek max-heap) item))
+              (conj min-heap item)
+              (do
+                (conj min-heap (peek max-heap))
+                (pop max-heap)
+                (conj max-heap item)))
+            (if (or (empty? min-heap)
+                    (> (peek min-heap) item))
+              (conj max-heap item)
+              (do
+                (conj max-heap (peek min-heap))
+                (pop min-heap)
+                (conj min-heap item)))))
+        (recur (inc index)
+               (rest v))))
+    (cond
+      (> (count min-heap)
+         (count max-heap)) (peek min-heap)
+      (> (count max-heap)
+         (count min-heap)) (peek max-heap)
+      :else                (/ (+ (peek min-heap) (peek max-heap)) 2))))
+
+(comment
+
+  ;; test case
+ (do
+   (def heap-arr
+     (to-array
+      (reverse [1 2 3 4 7 8 9 10 14 16])))
+   (def heap (Heap. heap-arr <))
+   (build-heap heap)
+   (prn heap)
+   (prn "peek: " (peek heap))
+   ;; (pop heap)
+   ;; (conj heap 16)
+   )
+
+ (heap-sort heap)
+
+
+ heap
+
+ (heap-extract-top-remanents heap)
+
+ (heapify heap (dec (count heap)) 0)
+
+ (do
+   (def heap-arr
+     (to-array
+      [1 2 3 4 7 8 9 10 14 16]))
+   (def heap (Heap. heap-arr >))
+   (build-heap heap)
+   (prn heap)
+   (prn "peek: " (peek heap))
+   (pop heap)
+   (conj heap 16))
+
+
+ (heap-sort heap))
