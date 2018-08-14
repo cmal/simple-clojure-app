@@ -691,3 +691,22 @@
                       times)))))))
    (prn "Answer: " (activityNotifications))))
 
+
+;; === merge sort ====
+
+(defn merge [arr p q r]
+  (let [n1 (- q p)
+        n2 (- r q 1)
+        l (take n1 (drop (dec p) arr))
+        r (take n2 (drop q arr))]
+    (loop [i 0
+           j 0
+           k p]
+      (when (<= k r)
+        (if (<= (nth l i) (nth r j)))))))
+
+(defn merge-sort [v p r]
+  (when (< p r)
+    (let [q (quot (+ p r) 2)]
+      (merge-sort v p q)
+      (merge-sort))))
