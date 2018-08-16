@@ -2,7 +2,8 @@
   (:require [clojure.repl :refer [source doc]]
             [clojure.edn :as edn])
   (:use [clojure.test]
-        [clojure.pprint]))
+        [clojure.pprint]
+        [clojure.reflect]))
 
 (defn r-insertion-sort [arr]
   ;; insertion sort for java array
@@ -694,19 +695,108 @@
 
 ;; === merge sort ====
 
-(defn merge [arr p q r]
-  (let [n1 (- q p)
-        n2 (- r q 1)
-        l (take n1 (drop (dec p) arr))
-        r (take n2 (drop q arr))]
+(defn merge* [arr p q r]
+  #_(prn "merge " p q r)
+  (let [n1    (- q p -1)
+        n2    (- r q)
+        left  (java.util.Arrays/copyOfRange arr p (inc q))
+        right (java.util.Arrays/copyOfRange arr (inc q) (inc r))]
     (loop [i 0
            j 0
            k p]
+      #_(prn "loop" i j k " n1 " n1 " n2 " n2)
       (when (<= k r)
-        (if (<= (nth l i) (nth r j)))))))
+        (cond
 
-(defn merge-sort [v p r]
+          (and (= i n1)
+               (= j n2))
+          nil
+
+          (= i n1)
+          (do
+            #_(prn "aset " k (aget right j))
+            (aset arr k (aget right j))
+            (recur i (inc j) (inc k)))
+
+          (= j n2)
+          (do
+            #_(prn "aset " k (aget left i) (count left) (type left))
+            (aset arr k (aget left i))
+            (recur (inc i) j (inc k)))
+
+          :else
+          (let [left-i  (aget left i)
+                right-j (aget right j)]
+            #_(prn "left right" left-i right-j)
+            (if (<= left-i right-j)
+              (do
+                (aset arr k left-i)
+                (recur (inc i) j (inc k)))
+              (do
+                (aset arr k right-j)
+                (recur i (inc j) (inc k))))))))))
+
+(defn merge-sort [arr p r]
+  ;; initial p = 0, and
+  ;; r = (count arr)
+  #_(prn "merge sort " p r)
   (when (< p r)
     (let [q (quot (+ p r) 2)]
-      (merge-sort v p q)
-      (merge-sort))))
+      (merge-sort arr p q)
+      (merge-sort arr (inc q) r)
+      (merge* arr p q r))))
+
+
+
+(do
+  (def arr (to-array [7, 9, 6, 15, 16, 18, 13, 1, 10, 12, 4, 11, 8, 3, 14, 2, 17, 19, 5, 0]))
+  (merge-sort arr 0 19))
+
+(defn copy-of-range [arr beg n]
+  (let [new-arr (java.lang.reflect.Array/newInstance (type (first arr)) n)]
+    (System/arraycopy arr beg new-arr 0 n)
+    new-arr))
+
+(defn merge-inversions [arr p q r]
+  (let [n1    (- q p -1)
+        n2    (- r q)
+        left  (copy-of-range arr p n1)
+        right (copy-of-range arr (inc q) n2)]
+    (loop [i 0 j 0 k p cnt 0]
+      (cond
+
+          (and (= i n1)
+               (= j n2))
+          cnt
+
+          (= i n1)
+          (do
+            (aset arr k (aget right j))
+            (recur i (inc j) (inc k) cnt))
+
+          (= j n2)
+          (do
+            (aset arr k (aget left i))
+            (recur (inc i) j (inc k) cnt))
+
+          :else
+          (let [left-i  (aget left i)
+                right-j (aget right j)]
+            (if (<= left-i right-j)
+              (do
+                (aset arr k left-i)
+                (recur (inc i) j (inc k) cnt))
+              (do
+                (aset arr k right-j)
+                (recur i (inc j) (inc k) (+ cnt (- n1 i))))))))))
+
+(defn merge-sort-inversions [arr p r]
+  ;; initial p = 0, and
+  ;; r = (count arr)
+  (if (< p r)
+    (let [q (quot (+ p r) 2)]
+      (+
+       (merge-sort-inversions arr p q)
+       (merge-sort-inversions arr (inc q) r)
+       (merge-inversions arr p q r)))
+    0))
