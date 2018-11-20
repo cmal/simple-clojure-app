@@ -626,7 +626,7 @@
        n 9
        d 5
        expenditure [2 3 4 2 3 6 8 4 5]
-       
+
        ;; n 5
        ;; d 4
        ;; expenditure [1 2 3 4 4]
@@ -830,3 +830,202 @@
 
 (defn count-inversions [v]
   (second (merge-sort-inversion v)))
+
+
+
+
+(defn counter-inc-key [counter k]
+  (let [v (get counter k)]
+    (if v
+      (update counter k inc)
+      (assoc counter k 1))))
+
+(defn freqQuery [queries]
+  (loop [queries queries
+         array {}
+         counter {}
+         result []]
+    (if (empty? queries)
+      result
+      (let [query (first queries)
+            op (first query)
+            k (second query)
+            v (array k)]
+        (case op
+          1 (recur
+             (rest queries)
+             (if v (update array k inc) (assoc array k 1))
+             (if v
+               (-> counter (update v dec) (counter-inc-key (inc v)))
+               (-> counter (counter-inc-key 1)))
+             result)
+          2 (recur
+             (rest queries)
+             (if (and v (pos? v)) ;; k 存在
+               (update array k dec)
+               array)
+             (if (and v (pos? v))
+               (-> counter (update v dec) (counter-inc-key (dec v)))
+               counter)
+             result)
+          3 (recur
+             (rest queries)
+             array
+             counter
+             (conj result (let [ck (counter k)] (if (and ck (not (zero? ck))) 1 0)))))))))
+
+
+(defn countTriplets [v r]
+  (loop [v v
+         freqs {}
+         second {}
+         cnt 0]
+    (if (empty? v)
+      cnt
+      (let [k  (first v)
+            kr (quot k r)]
+        (recur (rest v)
+               (inc-k freqs k 1)
+               (if-let [freq (and (zero? (mod k r)) (freqs kr))]
+                 (inc-k second k freq)
+                 second)
+               (if-let [v (and (zero? (mod k r)) (second kr))]
+                 (+ cnt v)
+                 cnt))))))
+
+
+(defn count-combinations [n k]
+  (cond
+    (zero? k) 1
+    (< n k) 0
+    :else (+ (count-combinations (dec n) (dec k))
+             (count-combinations (dec n) k))))
+
+
+(defn count-combinations [n k]
+  (let [k (min k (- n k))]
+    (cond
+      (zero? k) 1
+      (< n k) 0
+      :else (reduce
+             (fn [prev curr]
+               (/ (* prev (inc (- n curr))) curr))
+             n
+             (range 2 (inc k))))))
+
+(defn choose2 [n]
+  (cond
+    (< n 2) 0
+    :else (/ (* n (dec n)) 2)))
+
+; Complete the divisibleSumPairs function below.
+(defn divisibleSumPairs [n k ar]
+  (if (= k 1)
+    (choose2 (count (distinct ar)))
+    (let [freqs (frequencies (map #(mod % k) ar))
+          half  (int (/ k 2))
+          calc  (fn [prev curr] (+ prev (* (get freqs curr 0) (get freqs (- k curr) 0))))]
+      (if (even? k)
+        (+ (choose2 (get freqs 0 0))
+           (choose2 (get freqs half 0))
+           (reduce calc 0 (range 1 half)))
+        (+ (choose2 (get freqs 0 0))
+           (reduce calc 0 (range 1 (inc half))))))))
+
+
+(def num-ways
+  (memoize (fn [n c]
+             (cond
+               (zero? n)       '({})
+               (< n (first c)) '()
+               ;; (= n (first c)) #{{n 1}}
+               :else
+               (distinct (mapcat (fn [x]
+                              (when (>= n x)
+                                (let [prev (- n x)]
+                                  (map
+                                   (fn [mp] (assoc mp x (inc (or (mp x) 0))))
+                                   (num-ways prev c))))) c))))))
+
+; Complete the getWays function below.
+(defn getWays [n c]
+  (#'num-ways n (sort c)))
+
+
+(def num-ways
+  (memoize (fn [n c]
+             (cond
+               (<= n 0) 0
+               (= n (first c)) 1
+               (= 1 (count c)) (if (zero? (mod n (first c))) 1 0)
+               :else (+ (num-ways (- n (first c)) c)
+                        (num-ways n (rest c)))))))
+
+(defn get-ways [n c]
+  (#'num-ways n (sort c)))
+
+
+(defn steps [n]
+  (cond
+    (zero? n) 0
+    (> n 5) (+ (quot n 5) (steps (rem n 5)))
+    (= n 4) 2
+    (= n 3) 2
+    :else 1))
+
+
+
+
+; Complete the equal function below.
+(defn equal [arr]
+  (let [arr (sort arr)
+        fst (first arr)]
+    (min
+     (reduce + (map #(steps (- % fst)) arr))
+     (reduce + (map #(steps (- % fst -1)) arr))
+     (reduce + (map #(steps (- % fst -2)) arr))
+     (reduce + (map #(steps (- % fst -3)) arr))
+     (reduce + (map #(steps (- % fst -4)) arr)))))
+
+
+1 2 3 2 3
+1 2 1 2 1
+1 1 3 1 3
+
+[10 1 10 1 10]
+
+(defn cost [v]
+  (max
+   (let [subv (subvec v 0 (dec (count v)))]
+     (+ (dec (peek subv))
+        (fixed-head-cost subv)))
+   (+ (dec (peek v))
+      (fixed-head-cost (conj (subvec v 0 (- (count v) 2)) 1)))))
+
+(defn vlast [v]
+  (get v (dec (count v))))
+
+(def fixed-head-cost
+  (memoize
+   (fn [v]
+     (let [last (vlast v)
+           subv (subvec v 0 (dec (count v)))]
+       (cond
+         (<= (count v) 1) 0
+         (= 1 last)      (+ (dec (vlast subv))
+                            (fixed-head-cost subv))
+         :else           (max
+                          (+ (dec last)
+                             (fixed-head-cost (conj (subvec subv 0 (dec (count subv))) 1)))
+                          (+ (Math/abs (- (vlast subv) last))
+                             (fixed-head-cost subv))))))))
+
+(= 2 (cost [1 2 3]))
+(= 4 (cost [1 2 3 2 1]))
+(= 36 (cost [10 1 10 1 10]))
+(= 18 (cost [2 7 8 7]))
+(= 5 (cost [4 6]))
+(= 0 (cost [1]))
+(= 396 (cost [100 2 100 2 100]))
+(= 50 (cost [3 15 4 12 10]))
+(= 12 (cost [4 7 9]))

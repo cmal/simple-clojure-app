@@ -26,7 +26,7 @@
 ;;            [com.cemerick/austin "0.1.6"]
 ;;            [cider/cider-nrepl   "0.17.0"] ;; Optional, for use with Emacs
 
-            [cider/cider-nrepl "0.18.0-snapshot"]
+            [cider/cider-nrepl "0.18.1"]
             ]
   :jvm-opts ["--add-modules" "java.xml.bind"] ;; for Java 10
   :main ^:skip-aot simple-clojure-app.core
